@@ -95,11 +95,18 @@
         let GRID_SIZE = 20; // The size of each tile in pixels, will be calculated dynamically
         
         let snakeHeadImg = new Image();
-        snakeHeadImg.src = './assets/Picsart_25-08-19_21-37-57-917.png';
+        // FIX: Reverted to the direct URL to fix the "Failed to load" error in this environment.
+        // When you deploy to GitHub, you can change this back to './assets/snake-head.png'
+        // after you've uploaded the image file there.
+        snakeHeadImg.src = 'https://image2url.com/images/1755619785973-abbe7d07-eb34-4260-ae81-e87ff5d5ff3b.png'; 
         snakeHeadImg.onerror = () => {
-            console.error("Failed to load image URL. A default color will be used.");
+            console.error("Failed to load image. A default color will be used.");
             snakeHeadImg = null; // Set to null to trigger fallback drawing
         };
+        
+        // FIX: Reverted to the data URI for the sound to ensure it works without a local file.
+        // When you deploy to GitHub, you can change this back to './assets/crash.mp3'
+        // after you've uploaded the audio file there.
         let crashSound = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
 
         // --- Game State ---
@@ -291,4 +298,3 @@
     </script>
 </body>
 </html>
-
