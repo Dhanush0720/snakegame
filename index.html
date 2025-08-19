@@ -9,7 +9,8 @@
     <style>
         body {
             font-family: 'Press Start 2P', cursive;
-            touch-action: manipulation;
+            touch-action: manipulation; /* Prevents double-tap zoom */
+            overflow: hidden; /* Prevents scrolling the page */
         }
         canvas {
             background-color: #1a202c; /* Dark background for the game */
@@ -17,6 +18,10 @@
             margin: 0 auto;
             border-radius: 0.5rem;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            /* Responsive sizing */
+            width: 100%;
+            max-width: 400px; /* Max size on large screens */
+            aspect-ratio: 1 / 1; /* Maintain a square shape */
         }
         .touch-controls {
             display: grid;
@@ -35,6 +40,10 @@
             justify-content: center;
             font-size: 24px;
             user-select: none;
+            cursor: pointer;
+        }
+        .touch-btn:active {
+            background-color: #2d3748;
         }
         .up { grid-column: 2; grid-row: 1; }
         .left { grid-column: 1; grid-row: 2; }
@@ -46,10 +55,10 @@
 
     <div class="w-full max-w-sm mx-auto text-center">
         <h1 class="text-4xl font-bold mb-4">Custom Snake</h1>
-        <p class="mb-4 text-gray-400">Use Arrow Keys or Swipe to Move</p>
+        <p class="mb-4 text-gray-400">Use Arrow Keys or Touch Controls</p>
         
-        <!-- Game Canvas -->
-        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <!-- Game Canvas (width/height removed for responsiveness) -->
+        <canvas id="gameCanvas"></canvas>
 
          <!-- Touch Controls for Mobile -->
         <div class="touch-controls md:hidden mx-auto">
@@ -82,15 +91,16 @@
         const restartButton = document.getElementById('restartButton');
 
         // --- Game Configuration ---
-        const GRID_SIZE = 20;
-        const TILE_COUNT = canvas.width / GRID_SIZE;
+        const TILE_COUNT = 20; // The grid will always be 20x20
+        let GRID_SIZE = 20; // The size of each tile in pixels, will be calculated dynamically
+        
         let snakeHeadImg = new Image();
-        snakeHeadImg.src = 'https://image2url.com/images/1755619785973-abbe7d07-eb34-4260-ae81-e87ff5d5ff3b.png';
+        snakeHeadImg.src = snakeHeadImg.src = './assets/snake-head.png'; // (Or whatever you named the image file)
         snakeHeadImg.onerror = () => {
             console.error("Failed to load image URL. A default color will be used.");
             snakeHeadImg = null; // Set to null to trigger fallback drawing
         };
-        let crashSound = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+        let crashSound = snakeHeadImg.src = './assets/snake-head.png'; // (Or whatever you named the image file)
 
         // --- Game State ---
         let snake = [{ x: 10, y: 10 }];
@@ -101,6 +111,17 @@
         let gameOver = false;
         let gameStarted = false;
         let changingDirection = false;
+
+        // --- Canvas Sizing ---
+        function resizeCanvas() {
+            // Use the displayed width of the canvas (set by CSS)
+            const size = canvas.clientWidth;
+            // Set the internal resolution to match, ensuring a crisp grid
+            canvas.width = size;
+            canvas.height = size;
+            // Recalculate grid size based on new canvas size
+            GRID_SIZE = canvas.width / TILE_COUNT;
+        }
 
         // --- Main Game Loop ---
         function gameLoop() {
@@ -165,14 +186,14 @@
             
             // Draw Score
             ctx.fillStyle = '#fff';
-            ctx.font = '20px "Press Start 2P"';
-            ctx.fillText(`Score: ${score}`, 10, 25);
+            ctx.font = `${GRID_SIZE * 0.8}px "Press Start 2P"`;
+            ctx.fillText(`Score: ${score}`, 10, GRID_SIZE);
             
             if (!gameStarted && !gameOver) {
-                ctx.font = '16px "Press Start 2P"';
+                ctx.font = `${GRID_SIZE * 0.7}px "Press Start 2P"`;
                 ctx.textAlign = 'center';
-                ctx.fillText("Press Arrow Key", canvas.width / 2, canvas.height / 2 - 20);
-                ctx.fillText("To Start", canvas.width / 2, canvas.height / 2 + 20);
+                ctx.fillText("Press Arrow Key", canvas.width / 2, canvas.height / 2 - GRID_SIZE);
+                ctx.fillText("To Start", canvas.width / 2, canvas.height / 2 + GRID_SIZE);
                 ctx.textAlign = 'left';
             }
         }
@@ -181,15 +202,16 @@
         function generateFood() {
             food.x = Math.floor(Math.random() * TILE_COUNT);
             food.y = Math.floor(Math.random() * TILE_COUNT);
-            // Ensure food doesn't spawn on the snake
-            snake.forEach(segment => {
+            for (const segment of snake) {
                 if (segment.x === food.x && segment.y === food.y) {
-                    generateFood();
+                    generateFood(); // Recursively find a new spot
+                    return;
                 }
-            });
+            }
         }
 
         function resetGame() {
+            resizeCanvas(); // Ensure canvas is correctly sized before drawing
             snake = [{ x: 10, y: 10 }];
             velocity = { x: 0, y: 0 };
             score = 0;
@@ -217,17 +239,16 @@
         // --- Event Listeners ---
         function handleDirectionChange(e) {
              if (changingDirection) return;
-             changingDirection = true;
-
+             
             const keyPressed = e.key;
             const goingUp = velocity.y === -1;
             const goingDown = velocity.y === 1;
             const goingRight = velocity.x === 1;
-            const goingLeft = velocity.x === 0 && snake.length > 1 ? false : velocity.x === -1;
-
+            const goingLeft = velocity.x === -1;
 
             if (!gameStarted) gameStarted = true;
 
+            // Prevent the snake from reversing on itself
             if (keyPressed === "ArrowLeft" && !goingRight) {
                 velocity = { x: -1, y: 0 };
             } else if (keyPressed === "ArrowUp" && !goingDown) {
@@ -237,19 +258,33 @@
             } else if (keyPressed === "ArrowDown" && !goingUp) {
                 velocity = { x: 0, y: 1 };
             }
+            changingDirection = true;
         }
         
         document.addEventListener('keydown', handleDirectionChange);
         restartButton.addEventListener('click', resetGame);
+        window.addEventListener('resize', resetGame); // Reset game on resize to adjust grid
 
-        // Touch controls
-        document.getElementById('btn-up').addEventListener('click', () => handleDirectionChange({key: 'ArrowUp'}));
-        document.getElementById('btn-down').addEventListener('click', () => handleDirectionChange({key: 'ArrowDown'}));
-        document.getElementById('btn-left').addEventListener('click', () => handleDirectionChange({key: 'ArrowLeft'}));
-        document.getElementById('btn-right').addEventListener('click', () => handleDirectionChange({key: 'ArrowRight'}));
+        // --- Touch controls setup ---
+        function setupTouchControls() {
+            const buttons = {
+                'btn-up': 'ArrowUp', 'btn-down': 'ArrowDown',
+                'btn-left': 'ArrowLeft', 'btn-right': 'ArrowRight'
+            };
+            for (const [id, key] of Object.entries(buttons)) {
+                const buttonEl = document.getElementById(id);
+                if (buttonEl) {
+                    buttonEl.addEventListener('touchstart', (e) => {
+                        e.preventDefault(); // Prevents click delay and page scrolling
+                        handleDirectionChange({ key: key });
+                    }, { passive: false });
+                }
+            }
+        }
 
         // --- Initial Setup ---
         window.onload = () => {
+            setupTouchControls();
             resetGame();
             setInterval(gameLoop, 1000 / 10); // Game speed: 10 frames per second
         };
